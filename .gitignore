@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+client/node_modules/
+
+# Old Vite build artifacts inside public (if any future client build is run)
+public/client/
+public/assets/
+
+# Server runtime directories (created automatically)
+uploads/
+merged/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Vite build cache
+client/.vite/
+dist/
+
+# Claude context file — local only, never commit
+CLAUDE.md

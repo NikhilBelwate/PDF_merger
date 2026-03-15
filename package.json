@@ -1,0 +1,25 @@
+{
+  "name": "pdf-merger-app",
+  "version": "1.0.0",
+  "description": "A Node.js web application to upload, arrange, and merge PDF files",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "build:client": "cd client && npm install && npm run build",
+    "setup": "npm install && npm run build:client",
+    "dev:client": "cd client && npm run dev"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^2.0.0",
+    "pdf-lib": "^1.17.1",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
