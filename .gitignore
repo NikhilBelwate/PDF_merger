@@ -31,3 +31,4 @@ yarn-error.log*
 
 # Claude context file — local only, never commit
 CLAUDE.md
+.env.example

@@ -1,32 +1,33 @@
 # PDF Merger App
 
-A full-stack web application for uploading, arranging, and merging multiple PDF files into one — with a secure one-time download and automatic server-side file deletion.
+A full-stack web application for uploading, arranging, and merging multiple PDF files into one — with a secure one-time download and automatic cloud file deletion.
 
-The frontend runs entirely from a **single HTML file** using React, Tailwind CSS, and SortableJS loaded from CDN — no build step or toolchain required.
+The frontend runs from a **single HTML file** using React, Tailwind CSS, and SortableJS via CDN — no build step required. All file storage uses **Vercel Blob**, so the app runs cleanly on Vercel's serverless infrastructure with no local filesystem dependency.
 
 ---
 
 ## Tech Stack
 
-| Layer    | Technology |
-|----------|------------|
-| **Backend** | Node.js · Express · pdf-lib · multer · uuid |
-| **Frontend** | React 18 (CDN) · Tailwind CSS Play CDN · Babel Standalone · SortableJS |
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Node.js · Express · pdf-lib · multer (memory) · @vercel/blob |
+| **Frontend** | React 18 CDN · Tailwind Play CDN · Babel Standalone · SortableJS |
+| **Storage** | Vercel Blob (uploads + merged PDFs — deleted after download) |
 | **Theme** | Silver / Gray / Black dark UI |
-| **Runtime** | Node.js ≥ 16 — no separate frontend build needed |
+| **Runtime** | Node.js ≥ 18 |
 
 ---
 
 ## Features
 
-- **PDF-only uploads** — validated on both client (MIME type + extension) and server
+- **PDF-only uploads** — validated on client (MIME + extension) and server (multer filter)
 - **Drag-and-drop upload zone** — drop files directly or click to browse
 - **Drag-to-reorder** — rearrange the merge sequence by dragging file rows
-- **Session-based file tracking** — each browser session manages its own uploaded files independently
+- **Session-based tracking** — each browser session manages its own uploaded files independently
 - **One-time download token** — the merged PDF download link works exactly once
-- **Secure auto-delete** — all uploaded and merged files are deleted from the server immediately after the download stream completes
-- **Stale file cleanup** — a background job removes any orphaned files older than 1 hour, running every 30 minutes
-- **Responsive dark UI** — silver/gray/black theme, smooth animations, mobile-friendly layout
+- **Secure auto-delete** — all Blobs (uploaded sources + merged result) are deleted from Vercel Blob immediately after the download stream completes
+- **Stale cleanup job** — a background sweep removes abandoned Blobs older than 1 hour, running every 30 minutes
+- **Vercel-compatible** — uses `multer.memoryStorage()` and Vercel Blob; no local file writes
 
 ---
 
@@ -34,33 +35,45 @@ The frontend runs entirely from a **single HTML file** using React, Tailwind CSS
 
 ### Prerequisites
 
-- **Node.js ≥ 16** — that's it. No npm scripts for the frontend are needed.
+- Node.js ≥ 18
+- A [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) store linked to your project
 
-### Install & Run
+### Local Development
 
 ```bash
-# Clone the repository
+# 1. Clone the repo
 git clone https://github.com/nikhilbelwate/pdf-merger-app.git
 cd pdf-merger-app
 
-# Install server dependencies
+# 2. Install dependencies
 npm install
 
-# Start the server
-npm start
-```
+# 3. Set up environment variables
+cp .env.example .env
+# Edit .env — add your BLOB_READ_WRITE_TOKEN from vercel.com/dashboard
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-For auto-restart on server file changes during development:
-
-```bash
+# 4. Start the dev server
 npm run dev
 ```
 
-> The frontend (`public/index.html`) loads React, Tailwind, and SortableJS directly
-> from CDN at runtime — there is no build step, no `npm run build`, and no separate
-> dev server required.
+Open [http://localhost:3000](http://localhost:3000).
+
+### Deploy to Vercel
+
+```bash
+vercel deploy
+```
+
+Link a Blob store in the Vercel dashboard — `BLOB_READ_WRITE_TOKEN` is injected automatically.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `BLOB_READ_WRITE_TOKEN` | **Yes** | Vercel Blob read/write token. Set automatically on Vercel; copy from dashboard for local dev. |
+| `PORT` | No | HTTP port (default: `3000`) |
 
 ---
 
@@ -68,24 +81,25 @@ npm run dev
 
 ```
 Browser
-  │  1. Upload PDFs (XHR with progress)
+  │  1. Upload PDFs  →  XHR with progress events
   │  2. Drag rows to set merge order
   │  3. Click "Merge PDFs"
   ▼
-Express Server (port 3000)
-  │  • Validates files (PDF only, max 100 MB each, up to 30 per session)
-  │  • Stores uploads in uploads/ with UUID filenames
-  │  • Merges using pdf-lib in the requested order
-  │  • Issues a one-time UUID download token
+Express Server
+  │  • multer.memoryStorage() — files buffered in RAM, never written to disk
+  │  • Each buffer uploaded to Vercel Blob  (uploads/<uuid>.pdf)
+  │  • PDFs fetched from Blob, merged with pdf-lib
+  │  • Merged PDF uploaded to Vercel Blob  (merged/<timestamp>.pdf)
+  │  • One-time UUID token issued
   ▼
 Browser
-  │  4. Receives token → auto-triggers download
-  │  5. Server streams merged PDF → deletes all files → token invalidated
+  │  4. Token received → auto-triggers download
+  │
   ▼
-Server (cleanup)
-  • All uploaded source files deleted
-  • Merged file deleted
-  • Download token removed
+Express /download/:token
+  │  • Token invalidated immediately (one-time use)
+  │  • Merged PDF fetched from Blob → sent to browser as buffer
+  │  • On response finish: ALL Blobs deleted (sources + merged)
 ```
 
 ---
@@ -94,12 +108,11 @@ Server (cleanup)
 
 ```
 pdf-merger-app/
-├── server.js           — Express API: upload, merge, one-time download, cleanup
-├── package.json        — Server-side dependencies
+├── server.js           — Express API: upload → Blob, merge, one-time download, cleanup
+├── package.json        — Dependencies (includes @vercel/blob)
+├── .env.example        — Environment variable template
 ├── public/
-│   └── index.html      — Complete React frontend (CDN-based, no build required)
-├── uploads/            — Temporary upload storage  [auto-created · gitignored]
-├── merged/             — Temporary merged PDF storage [auto-created · gitignored]
+│   └── index.html      — Complete React frontend (CDN-based, zero build)
 ├── .gitignore
 └── README.md
 ```
@@ -110,48 +123,51 @@ pdf-merger-app/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/upload` | Upload one or more PDF files (`multipart/form-data`, field `pdfs`). Pass `x-session-id` header on subsequent calls to add to the same session. Returns `{ sessionId, files[] }`. |
-| `DELETE` | `/file/:sessionId/:fileId` | Remove a single uploaded file from the session and disk. |
-| `POST` | `/merge` | Body: `{ sessionId, fileOrder: string[] }`. Merges PDFs in the given ID order. Returns `{ token, pageCount, sizeFormatted }`. |
-| `GET` | `/download/:token` | **One-time use.** Streams the merged PDF, then deletes all associated files and invalidates the token. |
+| `POST` | `/upload` | Multipart upload (`field: pdfs`). Pass `x-session-id` header to add to an existing session. Returns `{ sessionId, files[] }`. |
+| `DELETE` | `/file/:sessionId/:fileId` | Remove a single file from the session; deletes its Blob. |
+| `POST` | `/merge` | Body: `{ sessionId, fileOrder: string[] }`. Fetches Blobs, merges, uploads result. Returns `{ token, pageCount, sizeFormatted }`. |
+| `GET` | `/download/:token` | **One-time use.** Fetches merged Blob, sends to client, then deletes all Blobs and invalidates the token. |
+
+---
+
+## Error Handling
+
+| Scenario | HTTP Code | Behaviour |
+|----------|-----------|-----------|
+| Non-PDF file uploaded | 415 | Rejected before Blob upload; buffer discarded |
+| File exceeds 100 MB | 413 | Rejected by multer before Blob upload |
+| Blob upload fails (one file) | 502 | Already-uploaded Blobs in that batch are rolled back |
+| Blob fetch fails during merge | 502 | Named file flagged in error message |
+| Corrupt / encrypted PDF | 422 | Named file flagged; no Blob left orphaned |
+| Blob fetch fails during download | 502 | All Blobs still cleaned up |
+| Download token not found / used | 404 | Friendly HTML page with back link |
 
 ---
 
 ## Configuration
 
-All limits are defined as constants at the top of `server.js`:
+All limits are constants at the top of `server.js`:
 
 | Constant | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `3000` | HTTP server port (override with `PORT` env var) |
-| `MAX_FILE_SIZE` | `100 MB` | Maximum size per uploaded PDF |
-| `MAX_FILE_COUNT` | `30` | Maximum PDFs per merge session |
-| `STALE_THRESHOLD` | `1 hour` | Age at which orphaned files are removed |
-| `CLEANUP_INTERVAL` | `30 min` | How often the stale-file sweep runs |
+| `MAX_FILE_SIZE` | 100 MB | Per-file upload limit |
+| `MAX_FILE_COUNT` | 30 | Max PDFs per session |
+| `STALE_THRESHOLD` | 1 hour | Age threshold for abandoned Blob cleanup |
+| `CLEANUP_INTERVAL` | 30 min | How often the stale sweep runs |
 
 ---
 
-## Frontend CDN Dependencies
+## Frontend CDN Libraries
 
-The `public/index.html` file loads these libraries at runtime — nothing to install:
+No install needed — loaded at runtime in `public/index.html`:
 
-| Library | Version | CDN Source |
-|---------|---------|------------|
-| React | 18.2.0 | cdnjs.cloudflare.com |
-| ReactDOM | 18.2.0 | cdnjs.cloudflare.com |
-| Babel Standalone | 7.23.5 | cdnjs.cloudflare.com |
-| Tailwind CSS | Play CDN (latest) | cdn.tailwindcss.com |
-| SortableJS | 1.15.2 | cdnjs.cloudflare.com |
-
----
-
-## Security
-
-- File type is validated at two layers: MIME type **and** `.pdf` extension check.
-- All server-stored filenames are UUID v4 — original filenames never touch the filesystem.
-- Download tokens are UUID v4 and invalidated on the first request.
-- Files are deleted on both stream `end` and stream `error` events.
-- Stale file cleanup prevents orphaned files accumulating if a session is abandoned.
+| Library | Version | Purpose |
+|---------|---------|---------|
+| React | 18.2.0 | UI framework |
+| ReactDOM | 18.2.0 | DOM rendering |
+| Babel Standalone | 7.23.5 | JSX → JS in browser |
+| Tailwind CSS Play CDN | latest | Utility CSS |
+| SortableJS | 1.15.2 | Drag-to-reorder |
 
 ---
 
