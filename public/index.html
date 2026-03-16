@@ -379,7 +379,7 @@
           handle:      '.drag-handle',
           ghostClass:  'sortable-ghost',
           chosenClass: 'sortable-chosen',
-          disabled:    !!disabled,
+          disabled:    false,
           onEnd({ oldIndex, newIndex }) {
             if (oldIndex === newIndex) return;
             const next = [...filesRef.current];
@@ -400,26 +400,26 @@
         if (sortableRef.current) sortableRef.current.option('disabled', !!disabled);
       }, [disabled]);
 
-      if (files.length === 0) {
-        return (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900">
-              <svg className="h-5 w-5 text-zinc-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
-                <polyline points="14 2 14 8 20 8"/>
-              </svg>
-            </div>
-            <p className="text-sm text-zinc-600">No PDFs uploaded yet.</p>
-            <p className="mt-0.5 text-xs text-zinc-700">Upload files above to get started.</p>
-          </div>
-        );
-      }
-
+      // The container div is ALWAYS rendered so listRef is never null when
+      // the SortableJS useEffect fires (even on first mount with 0 files).
       return (
-        <div ref={listRef} className="flex flex-col gap-2">
-          {files.map((file, idx) => (
-            <FileItem key={file.id} file={file} index={idx} onRemove={onRemove} disabled={disabled} />
-          ))}
+        <div ref={listRef} className={files.length > 0 ? 'flex flex-col gap-2' : ''}>
+          {files.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900">
+                <svg className="h-5 w-5 text-zinc-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              <p className="text-sm text-zinc-600">No PDFs uploaded yet.</p>
+              <p className="mt-0.5 text-xs text-zinc-700">Upload files above to get started.</p>
+            </div>
+          ) : (
+            files.map((file, idx) => (
+              <FileItem key={file.id} file={file} index={idx} onRemove={onRemove} disabled={disabled} />
+            ))
+          )}
         </div>
       );
     }
