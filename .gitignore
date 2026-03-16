@@ -6,9 +6,6 @@ client/node_modules/
 public/client/
 public/assets/
 
-# Server runtime directories (created automatically)
-uploads/
-merged/
 
 # Environment & secrets
 .env
@@ -31,9 +28,6 @@ yarn-debug.log*
 yarn-error.log*
 *.log
 
-# Vite build cache
-client/.vite/
-dist/
 
 # Claude context file — local only, never commit
 CLAUDE.md
