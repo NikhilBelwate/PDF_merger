@@ -317,7 +317,10 @@
 
     function FileItem({ file, index, onRemove, disabled }) {
       return (
-        <div className="fade-up group flex items-center gap-3 rounded-xl border border-zinc-700/80 bg-zinc-800 px-4 py-3 transition-all duration-150 hover:border-zinc-600">
+        <div
+          className="file-item fade-up group flex items-center gap-3 rounded-xl border border-zinc-700/80 bg-zinc-800 px-4 py-3 transition-all duration-150 hover:border-zinc-600"
+          data-id={file.id}
+        >
 
           {/* Drag handle */}
           <span className="drag-handle flex-shrink-0 rounded-lg p-1.5 text-zinc-600 transition-colors hover:text-zinc-400" title="Drag to reorder">
@@ -362,6 +365,7 @@
 
     function FileList({ files, setFiles, onRemove, disabled }) {
       const listRef  = useRef(null);
+      const sortableRef = useRef(null);
       const filesRef = useRef(files); // Always-fresh reference for SortableJS callback
 
       // Keep ref in sync with state
@@ -375,6 +379,7 @@
           handle:      '.drag-handle',
           ghostClass:  'sortable-ghost',
           chosenClass: 'sortable-chosen',
+          disabled:    !!disabled,
           onEnd({ oldIndex, newIndex }) {
             if (oldIndex === newIndex) return;
             const next = [...filesRef.current];
@@ -383,8 +388,17 @@
             setFiles(next);   // setFiles from useState is stable — safe to close over
           },
         });
-        return () => sortable.destroy();
+        sortableRef.current = sortable;
+        return () => {
+          sortableRef.current = null;
+          sortable.destroy();
+        };
       }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+      // Keep SortableJS enabled/disabled in sync with app state
+      useEffect(() => {
+        if (sortableRef.current) sortableRef.current.option('disabled', !!disabled);
+      }, [disabled]);
 
       if (files.length === 0) {
         return (
